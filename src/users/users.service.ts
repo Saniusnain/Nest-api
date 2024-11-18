@@ -1,9 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import {User} from '../schemas/user.schema';
 
 @Injectable()
 export class UsersService {
+    constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+
     private users = [
         {
             "id": 1,
@@ -44,43 +49,31 @@ export class UsersService {
     ];
     
     findAll(role?: string, dept?: string) { 
-        let users = [];
         if (role) {
-            users = this.users.filter(user => user.role === role);
-            if (users.length === 0) throw new NotFoundException('No users found');
-            return users;
+            return this.userModel.find({role: role});
         }
         if (dept) {
-            users = this.users.filter(user => user.role === dept);
-            if (users.length === 0) throw new NotFoundException('No users found');
-            return users;
+            return this.userModel.find({dept: dept});
         }
-        return this.users;
+        return this.userModel.find();
     }
 
     findOne(id: number) {
-        const user = this.users.find(user => user.id === id);
+        const user = this.userModel.find({id: id});
         if (!user) throw new NotFoundException(`User #${id} not found`);
         return user;
     }
 
-    create(user: CreateUserDto) {
-        this.users.push(user);
-        return user;
+    async create(user: CreateUserDto): Promise<User> {
+        const createdUser = new this.userModel(user);
+        return createdUser.save();
     }
 
     update(user: UpdateUserDto, id: number) {
-        this.users = this.users.map(u => {
-            if (u.id === id) {
-                return {...u, ...user};
-            }
-            return u;
-        })
-
-        return this.findOne(id);
+        return this.userModel.findOneAndUpdate({id: id}, user);
     }
 
     delete(id: number) {
-        this.users = this.users.filter(u => u.id !== id);
+        return this.userModel.findOneAndDelete({id: id});
     }
 }
